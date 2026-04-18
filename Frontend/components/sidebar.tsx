@@ -57,15 +57,26 @@ export function Sidebar() {
   return (
     <aside className="flex h-full w-64 flex-col border-r border-sidebar-border bg-sidebar">
       {/* Logo */}
-      <div className="flex items-center gap-2 border-b border-sidebar-border px-4 py-5">
-        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary">
-          <Sparkles className="h-5 w-5 text-primary-foreground" />
+      <div className="flex flex-col border-b border-sidebar-border px-4 py-5 gap-3">
+        <div className="flex items-center gap-2">
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary">
+            <Sparkles className="h-5 w-5 text-primary-foreground" />
+          </div>
+          <div>
+            <h1 className="text-lg font-semibold tracking-tight text-sidebar-foreground">
+              OpsDolly
+            </h1>
+            <p className="text-xs text-muted-foreground">AI Video Studio</p>
+          </div>
         </div>
-        <div>
-          <h1 className="text-lg font-semibold tracking-tight text-sidebar-foreground">
-            DollyQx
-          </h1>
-          <p className="text-xs text-muted-foreground">AI Video Studio</p>
+        
+        {/* Status Badge */}
+        <div className="flex items-center gap-2 rounded-md bg-secondary/60 px-2.5 py-1.5 w-max">
+          <div className="relative flex h-2 w-2">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75"></span>
+            <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500"></span>
+          </div>
+          <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400">Backend: Online</span>
         </div>
       </div>
 

@@ -12,6 +12,7 @@ import {
   Loader2,
   Image as ImageIcon,
   ChevronRight,
+  Download,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
@@ -299,16 +300,40 @@ export function VideoPreview({ isGenerating, masterImageUrl, videoUrls }: VideoP
             />
           </div>
 
-          {/* Fullscreen */}
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-9 w-9 text-muted-foreground hover:text-foreground"
-            disabled={!hasVideos}
-            onClick={() => videoRef.current?.requestFullscreen()}
-          >
-            <Maximize2 className="h-4 w-4" />
-          </Button>
+          {/* Fullscreen & Download */}
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-9 w-9 text-muted-foreground hover:text-foreground"
+              disabled={!hasVideos}
+              onClick={() => videoRef.current?.requestFullscreen()}
+            >
+              <Maximize2 className="h-4 w-4" />
+            </Button>
+            {hasVideos && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-2 text-xs"
+                onClick={() => {
+                  videoUrls.forEach((v) => {
+                    if (v.status !== "success") return;
+                    const a = document.createElement("a");
+                    a.href = v.url;
+                    a.download = `scene_${v.scene_number}.mp4`;
+                    a.setAttribute("target", "_blank");
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                  });
+                }}
+              >
+                <Download className="h-4 w-4" />
+                Download All
+              </Button>
+            )}
+          </div>
         </div>
       </div>
     </div>

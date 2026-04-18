@@ -10,7 +10,7 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 // ─── Middleware ────────────────────────────────────────────────────────────────
-app.use(cors());
+app.use(cors({ origin: process.env.FRONTEND_URL || "*" }));
 app.use(express.json());
 
 // ─── Config ───────────────────────────────────────────────────────────────────
@@ -167,40 +167,45 @@ app.post("/generate-video", async (req, res) => {
     const videoUrls = [];
 
     for (const scene of scenes) {
-      console.log(`[Phase C] Scene ${scene.scene_number}: "${scene.visual_prompt.slice(0, 60)}…"`);
+      try {
+        console.log(`[Phase C] Scene ${scene.scene_number}: "${scene.visual_prompt.slice(0, 60)}…"`);
 
-      const i2vPayload = {
-        prompt: `${scene.visual_prompt}. Featuring character Dolly (${dollyDescription}). Cinematic, high quality.`,
-        start_image_url: masterImageUrl,
-        duration: String(Math.min(scene.duration, 10)), // Pixazo max 10s
-        aspect_ratio: "16:9",
-      };
+        const i2vPayload = {
+          prompt: `${scene.visual_prompt}. Featuring character Dolly (${dollyDescription}). Cinematic, high quality.`,
+          start_image_url: masterImageUrl,
+          duration: String(Math.min(scene.duration, 10)), // Pixazo max 10s
+          aspect_ratio: "16:9",
+        };
 
-      const i2vResponse = await axios.post(ENDPOINTS.imageToVideo, i2vPayload, {
-        headers: PIXAZO_HEADERS,
-      });
+        const i2vResponse = await axios.post(ENDPOINTS.imageToVideo, i2vPayload, {
+          headers: PIXAZO_HEADERS,
+        });
 
-      const i2vRequestId =
-        i2vResponse.data?.request_id ?? i2vResponse.data?.id ?? i2vResponse.data?.requestId;
+        const i2vRequestId =
+          i2vResponse.data?.request_id ?? i2vResponse.data?.id ?? i2vResponse.data?.requestId;
 
-      if (!i2vRequestId) {
-        throw new Error(
-          `No request_id for scene ${scene.scene_number}. Response: ${JSON.stringify(i2vResponse.data)}`
-        );
+        if (!i2vRequestId) {
+          throw new Error(
+            `No request_id for scene ${scene.scene_number}. Response: ${JSON.stringify(i2vResponse.data)}`
+          );
+        }
+
+        console.log(`[Phase C] Scene ${scene.scene_number} i2v request_id=${i2vRequestId} – polling…`);
+        const i2vPolled = await pollUntilDone(i2vRequestId);
+        const videoUrl = extractUrl(i2vPolled, "video");
+
+        if (!videoUrl) {
+          throw new Error(
+            `Could not extract video URL for scene ${scene.scene_number}: ${JSON.stringify(i2vPolled)}`
+          );
+        }
+
+        console.log(`[Phase C] Scene ${scene.scene_number} video: ${videoUrl}`);
+        videoUrls.push({ scene_number: scene.scene_number, visual_prompt: scene.visual_prompt, url: videoUrl, status: "success" });
+      } catch (sceneErr) {
+        console.error(`[Phase C] Error generating scene ${scene.scene_number}:`, sceneErr.message);
+        videoUrls.push({ scene_number: scene.scene_number, visual_prompt: scene.visual_prompt, error: sceneErr.message, status: "error" });
       }
-
-      console.log(`[Phase C] Scene ${scene.scene_number} i2v request_id=${i2vRequestId} – polling…`);
-      const i2vPolled = await pollUntilDone(i2vRequestId);
-      const videoUrl = extractUrl(i2vPolled, "video");
-
-      if (!videoUrl) {
-        throw new Error(
-          `Could not extract video URL for scene ${scene.scene_number}: ${JSON.stringify(i2vPolled)}`
-        );
-      }
-
-      console.log(`[Phase C] Scene ${scene.scene_number} video: ${videoUrl}`);
-      videoUrls.push({ scene_number: scene.scene_number, visual_prompt: scene.visual_prompt, url: videoUrl });
     }
 
     // ── Response ──────────────────────────────────────────────────────────────
