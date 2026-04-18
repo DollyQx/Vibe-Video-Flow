@@ -36,7 +36,7 @@ const ENDPOINTS = {
  * Poll Pixazo until the request is COMPLETED or FAILED.
  * Returns the final result object.
  */
-async function pollUntilDone(requestId, intervalMs = 3000, maxAttempts = 60) {
+async function pollUntilDone(requestId, intervalMs = 3000, maxAttempts = 150) {
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     await new Promise((r) => setTimeout(r, intervalMs));
     const { data } = await axios.get(ENDPOINTS.pollStatus(requestId), {
@@ -46,7 +46,7 @@ async function pollUntilDone(requestId, intervalMs = 3000, maxAttempts = 60) {
     const status = (data?.status || "").toUpperCase();
     console.log(`[poll] requestId=${requestId} attempt=${attempt} status=${status}`);
 
-    if (status === "COMPLETED" || status === "SUCCEEDED") {
+    if (status === "COMPLETED" || status === "SUCCEEDED" || status === "SUCCESS") {
       // Image result: data.result.images[0].url  or  data.images[0].url
       // Video result: data.result.videos[0].url  or  data.videos[0].url
       return data;

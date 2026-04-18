@@ -90,41 +90,7 @@ export function Sidebar() {
 
       {/* Project History */}
       <div className="flex-1 overflow-hidden">
-        <div className="flex items-center gap-2 px-4 py-2">
-          <Clock className="h-4 w-4 text-muted-foreground" />
-          <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-            Recent Projects
-          </span>
-        </div>
-        <ScrollArea className="h-[calc(100%-2rem)] px-2">
-          <div className="space-y-1 pb-4">
-            {projectHistory.map((project) => (
-              <button
-                key={project.id}
-                onClick={() => setActiveProject(project.id)}
-                className={`group flex w-full flex-col gap-1 rounded-lg px-3 py-2.5 text-left transition-colors hover:bg-sidebar-accent ${
-                  activeProject === project.id ? "bg-sidebar-accent" : ""
-                }`}
-              >
-                <div className="flex items-center gap-2">
-                  <Video className="h-4 w-4 text-muted-foreground group-hover:text-primary" />
-                  <span className="truncate text-sm font-medium text-sidebar-foreground">
-                    {project.title}
-                  </span>
-                </div>
-                <div className="flex items-center gap-2 pl-6">
-                  <span className="text-xs text-muted-foreground">
-                    {project.date}
-                  </span>
-                  <span className="text-xs text-muted-foreground">•</span>
-                  <span className="text-xs text-muted-foreground">
-                    {project.duration}
-                  </span>
-                </div>
-              </button>
-            ))}
-          </div>
-        </ScrollArea>
+        {/* Recent Projects removed per user request */}
       </div>
 
       {/* Bottom Navigation */}
