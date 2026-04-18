@@ -2,6 +2,9 @@ require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
 const axios = require("axios");
+const { OpenAI } = require("openai");
+
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -73,27 +76,35 @@ function extractUrl(polledData, type /* 'image' | 'video' */) {
 // ─── LLM Scene Parser ─────────────────────────────────────────────────────────
 
 /**
- * Phase A – Turn a free-form script into an array of structured scenes.
- * Uses a rule-based splitter so there is no extra LLM API requirement.
- * Each scene: { scene_number, visual_prompt, duration }
+ * Phase A – Turn a free-form script into an array of structured scenes using OpenAI.
  */
-function parseScenes(script) {
-  // Split on common screenplay delimiters or numbered lines
-  const raw = script
-    .split(/\n{2,}|(?=\bScene\s*\d+\b)|(?=\d+\.\s)/gi)
-    .map((s) => s.trim())
-    .filter(Boolean);
-
-  if (raw.length === 0) {
-    // Treat the whole script as one scene
-    return [{ scene_number: 1, visual_prompt: script.trim(), duration: 10 }];
+async function parseScript(script) {
+  if (!process.env.OPENAI_API_KEY) {
+    throw new Error("OPENAI_API_KEY is not set on server");
   }
 
-  return raw.map((block, i) => ({
-    scene_number: i + 1,
-    visual_prompt: block.replace(/^(Scene\s*\d+[:\-]?\s*|\d+\.\s*)/i, "").trim(),
-    duration: Math.min(15, Math.max(5, Math.ceil(block.split(" ").length / 10))),
-  }));
+  const response = await openai.chat.completions.create({
+    model: "gpt-4o",
+    messages: [
+      {
+        role: "system",
+        content:
+          'Break this script into 10-second scenes. For each scene, provide a high-detail visual prompt for a video generator. Output strictly in JSON: [{"scene_number": 1, "visual_prompt": "...", "duration": 10}].',
+      },
+      {
+        role: "user",
+        content: script,
+      },
+    ],
+  });
+
+  const content = response.choices[0].message.content;
+  try {
+    const cleaned = content.replace(/```json/gi, "").replace(/```/g, "").trim();
+    return JSON.parse(cleaned);
+  } catch (err) {
+    throw new Error("Failed to parse OpenAI JSON response: " + content);
+  }
 }
 
 // ─── Main Route ───────────────────────────────────────────────────────────────
@@ -110,8 +121,8 @@ app.post("/generate-video", async (req, res) => {
     }
 
     // ── Phase A: Script → Scenes ──────────────────────────────────────────────
-    console.log("[Phase A] Parsing script into scenes…");
-    const scenes = parseScenes(script);
+    console.log("[Phase A] Parsing script into scenes using OpenAI…");
+    const scenes = await parseScript(script);
     console.log(`[Phase A] ${scenes.length} scene(s) detected`);
 
     // ── Phase B: Generate Master Reference Image ──────────────────────────────
