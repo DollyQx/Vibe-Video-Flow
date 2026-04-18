@@ -2,9 +2,9 @@ require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
 const axios = require("axios");
-const { OpenAI } = require("openai");
+const { GoogleGenerativeAI } = require("@google/generative-ai");
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY);
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -76,34 +76,41 @@ function extractUrl(polledData, type /* 'image' | 'video' */) {
 // ─── LLM Scene Parser ─────────────────────────────────────────────────────────
 
 /**
- * Phase A – Turn a free-form script into an array of structured scenes using OpenAI.
+ * Phase A – Turn a free-form script into an array of structured scenes using Gemini.
  */
 async function parseScript(script) {
-  if (!process.env.OPENAI_API_KEY) {
-    throw new Error("OPENAI_API_KEY is not set on server");
+  if (!process.env.GOOGLE_API_KEY) {
+    throw new Error("GOOGLE_API_KEY is not set on server");
   }
 
-  const response = await openai.chat.completions.create({
-    model: "gpt-4o",
-    messages: [
-      {
-        role: "system",
-        content:
-          'Break this script into 10-second scenes. For each scene, provide a high-detail visual prompt for a video generator. Output strictly in JSON: [{"scene_number": 1, "visual_prompt": "...", "duration": 10}].',
-      },
-      {
-        role: "user",
-        content: script,
-      },
-    ],
+  const model = genAI.getGenerativeModel({
+    model: "gemini-1.5-flash",
+    // Force structured JSON output
+    generationConfig: {
+      responseMimeType: "application/json",
+    },
   });
 
-  const content = response.choices[0].message.content;
+  const prompt = `Break this script into 10-second scenes. For each scene, provide a high-detail visual prompt for a video generator. Output strictly as a JSON array corresponding to this schema:
+  [
+    {
+      "scene_number": 1,
+      "visual_prompt": "...",
+      "duration": 10
+    }
+  ]
+  
+  Script:
+  ${script}`;
+
+  const result = await model.generateContent(prompt);
+  const content = result.response.text();
+
   try {
     const cleaned = content.replace(/```json/gi, "").replace(/```/g, "").trim();
     return JSON.parse(cleaned);
   } catch (err) {
-    throw new Error("Failed to parse OpenAI JSON response: " + content);
+    throw new Error("Failed to parse Gemini JSON response: " + content);
   }
 }
 
