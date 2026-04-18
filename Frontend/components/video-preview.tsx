@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import {
   Play,
   Pause,
@@ -9,53 +9,98 @@ import {
   Volume2,
   Maximize2,
   Film,
-  Sparkles,
   Loader2,
+  Image as ImageIcon,
+  ChevronRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
+import type { VideoEntry } from "./script-editor";
 
 const GENERATION_STEPS = [
-  { step: 1, label: "Analyzing Script", description: "Parsing scenes and dialogue..." },
-  { step: 2, label: "Generating Frames", description: "Creating cinematic visuals..." },
-  { step: 3, label: "Rendering Video", description: "Compositing final output..." },
+  { step: 1, label: "Parsing Script", description: "Breaking your script into scenes…" },
+  { step: 2, label: "Character Lock", description: "Generating master reference image for Dolly…" },
+  { step: 3, label: "Rendering Videos", description: "Creating character-consistent clips via Pixazo…" },
 ];
 
-export function VideoPreview() {
-  const [isGenerating, setIsGenerating] = useState(false);
+interface VideoPreviewProps {
+  isGenerating: boolean;
+  masterImageUrl?: string;
+  videoUrls?: VideoEntry[];
+}
+
+export function VideoPreview({ isGenerating, masterImageUrl, videoUrls }: VideoPreviewProps) {
   const [currentStep, setCurrentStep] = useState(0);
-  const [hasVideo, setHasVideo] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [currentVideoIndex, setCurrentVideoIndex] = useState(0);
   const [progress, setProgress] = useState([0]);
   const [volume, setVolume] = useState([80]);
+  const videoRef = useRef<HTMLVideoElement>(null);
 
-  const handleGenerate = () => {
-    setIsGenerating(true);
-    setCurrentStep(1);
+  const hasVideos = videoUrls && videoUrls.length > 0;
+  const currentVideo = hasVideos ? videoUrls[currentVideoIndex] : null;
 
-    // Step 1 -> Step 2 after 2 seconds
-    setTimeout(() => {
-      setCurrentStep(2);
-    }, 2000);
-
-    // Step 2 -> Step 3 after 4 seconds
-    setTimeout(() => {
-      setCurrentStep(3);
-    }, 4000);
-
-    // Complete after 6 seconds
-    setTimeout(() => {
-      setIsGenerating(false);
+  // ── Animate generation steps ───────────────────────────────────────────────
+  useEffect(() => {
+    if (!isGenerating) {
       setCurrentStep(0);
-      setHasVideo(true);
-    }, 6000);
+      return;
+    }
+    setCurrentStep(1);
+    const t1 = setTimeout(() => setCurrentStep(2), 8000);
+    const t2 = setTimeout(() => setCurrentStep(3), 20000);
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+    };
+  }, [isGenerating]);
+
+  // ── Sync playback state with native video element ──────────────────────────
+  useEffect(() => {
+    const vid = videoRef.current;
+    if (!vid) return;
+    vid.volume = volume[0] / 100;
+    if (isPlaying) vid.play().catch(() => {});
+    else vid.pause();
+  }, [isPlaying, volume, currentVideoIndex]);
+
+  const handleTimeUpdate = () => {
+    const vid = videoRef.current;
+    if (!vid || !vid.duration) return;
+    setProgress([(vid.currentTime / vid.duration) * 100]);
   };
+
+  const handleVideoEnded = () => {
+    if (hasVideos && currentVideoIndex < videoUrls.length - 1) {
+      setCurrentVideoIndex((i) => i + 1);
+      setIsPlaying(true);
+    } else {
+      setIsPlaying(false);
+    }
+  };
+
+  const handleSeek = (val: number[]) => {
+    const vid = videoRef.current;
+    if (vid && vid.duration) {
+      vid.currentTime = (val[0] / 100) * vid.duration;
+      setProgress(val);
+    }
+  };
+
+  const formatTime = (sec: number) => {
+    const m = Math.floor(sec / 60);
+    const s = Math.floor(sec % 60);
+    return `${m}:${s.toString().padStart(2, "0")}`;
+  };
+
+  const currentDuration = videoRef.current?.duration ?? 0;
+  const currentTime = videoRef.current?.currentTime ?? 0;
 
   return (
     <div className="flex h-full flex-col rounded-xl border border-border bg-card">
       {/* Video Container */}
       <div className="relative flex flex-1 items-center justify-center overflow-hidden rounded-t-xl bg-background/50">
-        {/* Grid overlay for cinematic feel */}
+        {/* Grid overlay */}
         <div
           className="pointer-events-none absolute inset-0 opacity-5"
           style={{
@@ -65,10 +110,11 @@ export function VideoPreview() {
           }}
         />
 
-        {!hasVideo ? (
+        {!hasVideos ? (
           <div className="flex flex-col items-center gap-6 text-center">
             {isGenerating ? (
               <>
+                {/* Spinner */}
                 <div className="relative">
                   <div className="h-24 w-24 rounded-full border-2 border-primary/30" />
                   <div className="absolute inset-0 animate-spin rounded-full border-2 border-primary border-t-transparent" />
@@ -76,10 +122,10 @@ export function VideoPreview() {
                 </div>
                 <div>
                   <h3 className="text-lg font-semibold text-foreground">
-                    {GENERATION_STEPS[currentStep - 1]?.label || "Generating Video"}
+                    {GENERATION_STEPS[currentStep - 1]?.label || "Generating…"}
                   </h3>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    {GENERATION_STEPS[currentStep - 1]?.description || "AI is crafting your cinematic vision..."}
+                    {GENERATION_STEPS[currentStep - 1]?.description || "AI is crafting your cinematic vision…"}
                   </p>
                 </div>
                 {/* Step indicators */}
@@ -118,12 +164,9 @@ export function VideoPreview() {
                   <Film className="h-12 w-12 text-muted-foreground" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-semibold text-foreground">
-                    Ready to Create
-                  </h3>
+                  <h3 className="text-lg font-semibold text-foreground">Ready to Create</h3>
                   <p className="mt-1 max-w-sm text-sm text-muted-foreground">
-                    Write your script and click Generate to bring your vision to
-                    life
+                    Write your script and click Generate to bring Dolly to life
                   </p>
                 </div>
               </>
@@ -131,29 +174,68 @@ export function VideoPreview() {
           </div>
         ) : (
           <>
-            {/* Simulated video frame */}
-            <div className="absolute inset-8 rounded-lg border border-border/50 bg-gradient-to-br from-background via-secondary/20 to-background">
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="text-center">
-                  <div className="mb-4 flex justify-center">
-                    <div className="rounded-full bg-primary/20 p-4">
-                      <Play className="h-8 w-8 text-primary" />
-                    </div>
-                  </div>
-                  <p className="text-sm text-muted-foreground">
-                    Preview Ready
-                  </p>
+            {/* Real video player */}
+            <video
+              ref={videoRef}
+              src={currentVideo?.url}
+              className="absolute inset-0 h-full w-full object-contain"
+              onTimeUpdate={handleTimeUpdate}
+              onEnded={handleVideoEnded}
+              onPlay={() => setIsPlaying(true)}
+              onPause={() => setIsPlaying(false)}
+            />
+
+            {/* Master image thumbnail + scene label */}
+            <div className="absolute bottom-4 left-4 flex items-center gap-2 rounded-lg bg-background/80 p-2 backdrop-blur-sm">
+              {masterImageUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={masterImageUrl}
+                  alt="Dolly reference"
+                  className="h-10 w-10 rounded-md object-cover"
+                />
+              ) : (
+                <div className="flex h-10 w-10 items-center justify-center rounded-md bg-secondary">
+                  <ImageIcon className="h-5 w-5 text-muted-foreground" />
                 </div>
+              )}
+              <div>
+                <p className="text-xs font-medium text-foreground">
+                  Scene {currentVideo?.scene_number} / {videoUrls.length}
+                </p>
+                <p className="max-w-[160px] truncate text-[10px] text-muted-foreground">
+                  {currentVideo?.visual_prompt}
+                </p>
               </div>
             </div>
 
-            {/* Aspect ratio indicator */}
+            {/* Aspect ratio badge */}
             <div className="absolute right-4 top-4 rounded-md bg-background/80 px-2 py-1 text-xs font-medium text-muted-foreground backdrop-blur-sm">
-              16:9 • 1080p
+              16:9 • Scene {currentVideoIndex + 1}/{videoUrls.length}
             </div>
           </>
         )}
       </div>
+
+      {/* Scene strip (when videos are ready) */}
+      {hasVideos && videoUrls.length > 1 && (
+        <div className="flex items-center gap-2 overflow-x-auto border-t border-border px-4 py-2">
+          {videoUrls.map((v, i) => (
+            <button
+              key={v.scene_number}
+              onClick={() => { setCurrentVideoIndex(i); setIsPlaying(true); }}
+              className={`flex shrink-0 items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs transition-all ${
+                i === currentVideoIndex
+                  ? "border-primary bg-primary/10 text-primary"
+                  : "border-border bg-secondary text-muted-foreground hover:border-primary/50"
+              }`}
+            >
+              <ChevronRight className="h-3 w-3" />
+              Scene {v.scene_number}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Controls Bar */}
       <div className="border-t border-border bg-card p-4">
@@ -161,14 +243,15 @@ export function VideoPreview() {
         <div className="mb-4">
           <Slider
             value={progress}
-            onValueChange={setProgress}
+            onValueChange={handleSeek}
             max={100}
-            step={1}
+            step={0.1}
             className="w-full"
+            disabled={!hasVideos}
           />
           <div className="mt-1 flex justify-between text-xs text-muted-foreground">
-            <span>0:00</span>
-            <span>2:30</span>
+            <span>{formatTime(currentTime)}</span>
+            <span>{formatTime(currentDuration)}</span>
           </div>
         </div>
 
@@ -179,7 +262,8 @@ export function VideoPreview() {
               variant="ghost"
               size="icon"
               className="h-9 w-9 text-muted-foreground hover:text-foreground"
-              disabled={!hasVideo}
+              disabled={!hasVideos}
+              onClick={() => { setCurrentVideoIndex((i) => Math.max(0, i - 1)); setIsPlaying(true); }}
             >
               <SkipBack className="h-4 w-4" />
             </Button>
@@ -187,20 +271,17 @@ export function VideoPreview() {
               variant="ghost"
               size="icon"
               className="h-11 w-11 text-foreground hover:text-primary"
-              disabled={!hasVideo}
+              disabled={!hasVideos}
               onClick={() => setIsPlaying(!isPlaying)}
             >
-              {isPlaying ? (
-                <Pause className="h-6 w-6" />
-              ) : (
-                <Play className="h-6 w-6" />
-              )}
+              {isPlaying ? <Pause className="h-6 w-6" /> : <Play className="h-6 w-6" />}
             </Button>
             <Button
               variant="ghost"
               size="icon"
               className="h-9 w-9 text-muted-foreground hover:text-foreground"
-              disabled={!hasVideo}
+              disabled={!hasVideos || currentVideoIndex >= videoUrls!.length - 1}
+              onClick={() => { setCurrentVideoIndex((i) => Math.min(videoUrls!.length - 1, i + 1)); setIsPlaying(true); }}
             >
               <SkipForward className="h-4 w-4" />
             </Button>
@@ -223,33 +304,12 @@ export function VideoPreview() {
             variant="ghost"
             size="icon"
             className="h-9 w-9 text-muted-foreground hover:text-foreground"
-            disabled={!hasVideo}
+            disabled={!hasVideos}
+            onClick={() => videoRef.current?.requestFullscreen()}
           >
             <Maximize2 className="h-4 w-4" />
           </Button>
         </div>
-      </div>
-
-      {/* Generate Button */}
-      <div className="border-t border-border p-4">
-        <Button
-          className="w-full gap-2 bg-primary text-primary-foreground hover:bg-primary/90"
-          size="lg"
-          onClick={handleGenerate}
-          disabled={isGenerating}
-        >
-          {isGenerating ? (
-            <>
-              <Loader2 className="h-5 w-5 animate-spin" />
-              Generating...
-            </>
-          ) : (
-            <>
-              <Sparkles className="h-5 w-5" />
-              Generate Video
-            </>
-          )}
-        </Button>
       </div>
     </div>
   );
