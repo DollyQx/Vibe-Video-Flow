@@ -20,10 +20,10 @@ const PIXAZO_HEADERS = {
   "Ocp-Apim-Subscription-Key": PIXAZO_API_KEY,
 };
 
-// Pixazo model endpoints (Reverted to Safe Kling Models)
+// Pixazo model endpoints (Hybrid: Wan for Image, Kling for Video)
 const ENDPOINTS = {
   textToImage:
-    "https://gateway.pixazo.ai/kling-image/v1/kling-image/generate",
+    "https://gateway.pixazo.ai/wan-2-7-api/v1/generateWan27TextToImageRequest",
   imageToVideo:
     "https://gateway.pixazo.ai/kling-3-0-image-to-video-standard/v1/kling-3-0-image-to-video-standard-request",
   pollStatus: (requestId) =>
