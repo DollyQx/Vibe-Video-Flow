@@ -83,12 +83,9 @@ async function parseScript(script) {
     throw new Error("GOOGLE_API_KEY is not set on server");
   }
 
-  const model = genAI.getGenerativeModel({
-    model: "gemini-1.5-flash-latest",
-    generationConfig: {
-      responseMimeType: "application/json",
-    },
-  });
+  console.log('Script received:', script)
+
+  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
   const prompt = `Break this script into 10-second scenes. For each scene, provide a high-detail visual prompt for a video generator. Output strictly as a JSON array corresponding to this schema:
   [
