@@ -20,12 +20,12 @@ const PIXAZO_HEADERS = {
   "Ocp-Apim-Subscription-Key": PIXAZO_API_KEY,
 };
 
-// Pixazo model endpoints
+// Pixazo model endpoints for Wan
 const ENDPOINTS = {
   textToImage:
-    "https://gateway.pixazo.ai/kling-image/v1/kling-image/generate",
+    "https://gateway.pixazo.ai/wan-2-7-pro-api/v1/text-to-image-request",
   imageToVideo:
-    "https://gateway.pixazo.ai/kling-3-0-image-to-video-standard/v1/kling-3-0-image-to-video-standard-request",
+    "https://gateway.pixazo.ai/wan-2-6-image-to-video-477/v1/wan-2-6-image-to-video-request",
   pollStatus: (requestId) =>
     `https://gateway.pixazo.ai/v2/requests/status/${requestId}`,
 };
