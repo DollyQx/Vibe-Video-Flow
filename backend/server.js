@@ -20,12 +20,12 @@ const PIXAZO_HEADERS = {
   "Ocp-Apim-Subscription-Key": PIXAZO_API_KEY,
 };
 
-// Pixazo model endpoints (Hybrid: Wan for Image, Kling for Video)
+// Pixazo model endpoints (Hybrid: Wan for Image, Wan for Video)
 const ENDPOINTS = {
   textToImage:
     "https://gateway.pixazo.ai/wan-2-7-api/v1/generateWan27TextToImageRequest",
-  imageToVideo:
-    "https://gateway.pixazo.ai/kling-3-0-image-to-video-standard/v1/kling-3-0-image-to-video-standard-request",
+  videoGeneration:
+    "https://gateway.pixazo.ai/wan-2-6-text-to-video-569/v1/wan-2-6-text-to-video-request",
   pollStatus: (requestId) =>
     `https://gateway.pixazo.ai/v2/requests/status/${requestId}`,
 };
@@ -179,14 +179,18 @@ app.post("/generate-video", async (req, res) => {
       try {
         console.log(`[Phase C] Scene ${scene.scene_number}: "${scene.visual_prompt.slice(0, 60)}…"`);
 
-        const i2vPayload = {
+        const payload = {
           prompt: `${scene.visual_prompt}. Featuring character Dolly (${dollyDescription}). Cinematic, high quality.`,
-          start_image_url: masterImageUrl,
-          duration: String(Math.min(scene.duration, 10)), // Pixazo max 10s
           aspect_ratio: "16:9",
+          resolution: "1080p",
+          duration: "10",
+          negative_prompt: "low resolution, error, worst quality, low quality, defects",
+          enable_prompt_expansion: true,
+          multi_shots: true,
+          enable_safety_checker: true
         };
 
-        const i2vResponse = await axios.post(ENDPOINTS.imageToVideo, i2vPayload, {
+        const i2vResponse = await axios.post(ENDPOINTS.videoGeneration, payload, {
           headers: PIXAZO_HEADERS,
         });
 
