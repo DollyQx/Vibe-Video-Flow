@@ -1,0 +1,29 @@
+# Dependencies
+node_modules/
+**/node_modules/
+.npm
+
+# Environment & Config
+.env
+.env.*
+.env.local
+.env.production
+service-account.json
+**/service-account.json
+*.pem
+*.key
+*.keystore
+
+# Build Outputs
+dist/
+**/dist/
+build/
+**/build/
+.next/
+**/.next/
+
+# IDE / System
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
